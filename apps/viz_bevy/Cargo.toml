@@ -1,0 +1,22 @@
+[package]
+name = "viz_bevy"
+version = "0.1.0"
+edition = "2024"
+
+[env]
+WINIT_UNIX_BACKEND="x11"
+
+[dependencies]
+# we don't need the audio stuff from bevy, just the graphics
+bevy = { version = "0.12", default-features = false, features = [
+    "bevy_winit",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_asset",
+    "bevy_scene",
+    "png",
+    "tonemapping_luts",
+    "x11",                  # Add X11 support
+] }
+winit = { version = "0.28.7", features = ["x11"] } 
