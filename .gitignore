@@ -1,2 +1,9 @@
-/target
 *.rlib
+**/target/
+**/Cargo.lock
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+**/*.rs.bk
+**/*.swp
