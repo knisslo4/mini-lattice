@@ -3,4 +3,11 @@ name = "mini-lattice"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [
+    "data_model",
+    "snapshot_srv",
+    "tests"
+]
+
 [dependencies]

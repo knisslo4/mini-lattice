@@ -2,139 +2,123 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::pin::Pin;
 
+use futures::stream::BoxStream;
+use tonic::transport::Server;
+use tonic::{Request, Response, Status, Streaming};
+
 use arrow::array::{Int32Array, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
-use arrow_flight::flight_service_server::FlightServiceServer;
-use arrow_flight::flight_service_server::FlightService;
-use arrow_flight::{FlightData, Ticket, Result as FlightResult, SchemaResult, Action, PutResult, FlightInfo};
-use tonic::IntoStreamingRequest;
-use tonic::{transport::Server, Request, Response, Status};
-use arrow_flight::utils::flight_data_to_arrow_batch;
 
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::empty;
+use arrow_flight::{
+    flight_service_server::FlightService, flight_service_server::FlightServiceServer, Action,
+    ActionType, Criteria, Empty, FlightData, FlightDescriptor, FlightInfo, HandshakeRequest,
+    HandshakeResponse, PollInfo, PutResult, SchemaResult, Ticket,
+};
 
-struct MyFlightService {}
+#[derive(Clone)]
+pub struct FlightServiceImpl {}
 
 #[tonic::async_trait]
-impl FlightService for MyFlightService {
-    type HandshakeStream = Pin<Box<dyn IntoStreamingRequest::Stream<Item = Result<FlightData, Status>> + Send + Sync + 'static>>;
-    type ListFlightsStream = Pin<Box<dyn IntoStreamingRequest::Stream<Item = Result<FlightInfo, Status>> + Send + Sync + 'static>>;
-    type DoPutStream = Pin<Box<dyn IntoStreamingRequest::Stream<Item = Result<PutResult, Status>> + Send + Sync + 'static>>;
-    type DoExchangeStream = Pin<Box<dyn IntoStreamingRequest::Stream<Item = Result<FlightData, Status>> + Send + Sync + 'static>>;
-    type DoActionStream = Pin<Box<dyn IntoStreamingRequest::Stream<Item = Result<FlightResult, Status>> + Send + Sync + 'static>>;
-    type ListActionsStream = Pin<Box<dyn IntoStreamingRequest::Stream<Item = Result<Action, Status>> + Send + Sync + 'static>>;
-    // streaming type - saying our server will get FlightData messages back
-    type DoGetStream = ReceiverStream<Result<FlightData, Status>>;
+impl FlightService for FlightServiceImpl {
+    type HandshakeStream = BoxStream<'static, Result<HandshakeResponse, Status>>;
+    type ListFlightsStream = BoxStream<'static, Result<FlightInfo, Status>>;
+    type DoGetStream = BoxStream<'static, Result<FlightData, Status>>;
+    type DoPutStream = BoxStream<'static, Result<PutResult, Status>>;
+    type DoActionStream = BoxStream<'static, Result<arrow_flight::Result, Status>>;
+    type ListActionsStream = BoxStream<'static, Result<ActionType, Status>>;
+    type DoExchangeStream = BoxStream<'static, Result<FlightData, Status>>;
 
-    async fn do_get(
-        &self,
-        request: Request<Ticket>,
-    ) -> Result<Response<Self::DoGetStream>, Status> {
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("id", DataType::Int32, false),
-            Field::new("name", DataType::Utf8, false),
-        ]));
-
-        // this is a test batch of data
-        let batch = RecordBatch::try_new(
-            schema.clone(),
-            vec![
-                Arc::new(Int32Array::from(vec![1, 2, 3])),
-                Arc::new(StringArray::from(vec!["A", "B", "C"])),
-            ],
-        ).unwrap();
-
-        let (schema_flight_data, batch_flight_data) = 
-            flight_data_to_arrow_batch(&batch, &schema, false)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let (tx, rx) = tokio::sync::mpsc::channel(10);
-        tx.send(Ok(schema_flight_data)).await.unwrap();
-        for data in batch_flight_data {
-            tx.send(Ok(data)).await.unwrap();
-        }
-
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
-    }
-
-    // we need all of them for this to work
     async fn handshake(
         &self,
-        _: Request<tonic::Streaming<FlightData>>,
+        _request: Request<Streaming<HandshakeRequest>>,
     ) -> Result<Response<Self::HandshakeStream>, Status> {
-        Ok(Response::new(Box::pin(empty())))
+        Err(Status::unimplemented("Implement handshake"))
     }
 
     async fn list_flights(
         &self,
-        _: Request<()>,
+        _request: Request<Criteria>,
     ) -> Result<Response<Self::ListFlightsStream>, Status> {
-        Ok(Response::new(Box::pin(empty())))
+        Err(Status::unimplemented("Implement list_flights"))
     }
 
     async fn get_flight_info(
         &self,
-        _: Request<arrow_flight::FlightDescriptor>,
+        _request: Request<FlightDescriptor>,
     ) -> Result<Response<FlightInfo>, Status> {
-        Err(Status::unimplemented("get_flight_info not implemented"))
+        Err(Status::unimplemented("Implement get_flight_info"))
     }
 
     async fn poll_flight_info(
         &self,
-        _: Request<arrow_flight::FlightInfo>,
-    ) -> Result<Response<FlightInfo>, Status> {
-        Err(Status::unimplemented("poll_flight_info not implemented"))
+        _request: Request<FlightDescriptor>,
+    ) -> Result<Response<PollInfo>, Status> {
+        Err(Status::unimplemented("Implement poll_flight_info"))
     }
 
     async fn get_schema(
         &self,
-        _: Request<arrow_flight::FlightDescriptor>,
+        _request: Request<FlightDescriptor>,
     ) -> Result<Response<SchemaResult>, Status> {
-        Err(Status::unimplemented("get_schema not implemented"))
+        Err(Status::unimplemented("Implement get_schema"))
+    }
+
+    async fn do_get(
+        &self,
+        _request: Request<Ticket>,
+    ) -> Result<Response<Self::DoGetStream>, Status> {
+        Err(Status::unimplemented("Implement do_get"))
     }
 
     async fn do_put(
         &self,
-        _: Request<tonic::Streaming<FlightData>>,
+        _request: Request<Streaming<FlightData>>,
     ) -> Result<Response<Self::DoPutStream>, Status> {
-        Ok(Response::new(Box::pin(empty())))
-    }
-
-    async fn do_exchange(
-        &self,
-        _: Request<tonic::Streaming<FlightData>>,
-    ) -> Result<Response<Self::DoExchangeStream>, Status> {
-        Ok(Response::new(Box::pin(empty())))
+        Err(Status::unimplemented("Implement do_put"))
     }
 
     async fn do_action(
         &self,
-        _: Request<Action>,
+        _request: Request<Action>,
     ) -> Result<Response<Self::DoActionStream>, Status> {
-        Ok(Response::new(Box::pin(empty())))
+        Err(Status::unimplemented("Implement do_action"))
     }
 
     async fn list_actions(
         &self,
-        _: Request<()>,
+        _request: Request<Empty>,
     ) -> Result<Response<Self::ListActionsStream>, Status> {
-        Ok(Response::new(Box::pin(empty())))
+        Err(Status::unimplemented("Implement list_actions"))
+    }
+
+    async fn do_exchange(
+        &self,
+        _request: Request<Streaming<FlightData>>,
+    ) -> Result<Response<Self::DoExchangeStream>, Status> {
+        Err(Status::unimplemented("Implement do_exchange"))
     }
 }
+
+        // // this is a test batch of data
+        // let batch = RecordBatch::try_new(
+        //     schema.clone(),
+        //     vec![
+        //         Arc::new(Int32Array::from(vec![1, 2, 3])),
+        //         Arc::new(StringArray::from(vec!["A", "B", "C"])),
+        //     ],
+        // ).unwrap();
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = "[::1]:50051".parse()?;
-    let service = MyFlightService {};
+    let service = FlightServiceImpl {};
 
     println!("Flight Service listening on {}", addr);
-    
-    Server::builder()
-        .add_service(FlightServiceServer::new(service))
-        .serve(addr)
-        .await?;
+
+    let svc = FlightServiceServer::new(service);
+
+    Server::builder().add_service(svc).serve(addr).await?;
 
     Ok(())
 }
