@@ -1,1 +1,4 @@
 /target
+*.rlibtarget/
+*.rlib
+
